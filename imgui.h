@@ -1561,6 +1561,10 @@ enum ImGuiBackendFlags_
 enum ImGuiCol_
 {
     ImGuiCol_Text,
+    ImGuiCol_ButtonText,
+    ImGuiCol_WarningText,
+    ImGuiCol_TabText,
+    ImGuiCol_TabTextActive,
     ImGuiCol_TextDisabled,
     ImGuiCol_WindowBg,              // Background of normal windows
     ImGuiCol_ChildBg,               // Background of child windows

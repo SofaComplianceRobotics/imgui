@@ -30,6 +30,7 @@ Index of this file:
 
 */
 
+#include "IconsFontAwesome6.h"
 #if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -721,7 +722,11 @@ bool ImGui::ButtonEx(const char* label, const ImVec2& size_arg, ImGuiButtonFlags
 
     if (g.LogEnabled)
         LogSetNextTextDecoration("[", "]");
-    RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, label, NULL, &label_size, style.ButtonTextAlign, &bb);
+    ImGui::PushStyleColor(ImGuiCol_Text, GetColorU32(ImGuiCol_ButtonText));
+    RenderTextClipped(bb.Min + style.FramePadding,
+                      bb.Max - style.FramePadding,
+                      label, NULL, &label_size, style.ButtonTextAlign, &bb);
+    ImGui::PopStyleColor();
 
     // Automatically close popups
     //if (pressed && !(flags & ImGuiButtonFlags_DontClosePopups) && (window->Flags & ImGuiWindowFlags_Popup))
@@ -3022,7 +3027,8 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
     const float w = CalcItemWidth();
 
     const ImVec2 label_size = CalcTextSize(label, NULL, true);
-    const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
+    const ImRect frame_bb(ImVec2(window->DC.CursorPos.x, window->DC.CursorPos.y + GetFrameHeight() / 2.f - style.ScrollbarSize / 4.f),
+                          ImVec2(window->DC.CursorPos.x + w, window->DC.CursorPos.y + GetFrameHeight() / 2.f + style.ScrollbarSize / 4.f));
     const ImRect total_bb(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f));
 
     const bool temp_input_allowed = (flags & ImGuiSliderFlags_NoInput) == 0;
@@ -3075,15 +3081,11 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
         MarkItemEdited(id);
 
     // Render grab
+    float radius = style.ScrollbarSize / 1.75;
     if (grab_bb.Max.x > grab_bb.Min.x)
-        window->DrawList->AddRectFilled(grab_bb.Min, grab_bb.Max, GetColorU32(g.ActiveId == id ? ImGuiCol_SliderGrabActive : ImGuiCol_SliderGrab), style.GrabRounding);
-
-    // Display value using user-provided display format so user can add prefix/suffix/decorations to the value.
-    char value_buf[64];
-    const char* value_buf_end = value_buf + DataTypeFormatString(value_buf, IM_ARRAYSIZE(value_buf), data_type, p_data, format);
-    if (g.LogEnabled)
-        LogSetNextTextDecoration("{", "}");
-    RenderTextClipped(frame_bb.Min, frame_bb.Max, value_buf, value_buf_end, NULL, ImVec2(0.5f, 0.5f));
+    {
+        window->DrawList->AddCircleFilled(grab_bb.GetCenter(), radius, GetColorU32(g.ActiveId == id ? ImGuiCol_SliderGrabActive : ImGuiCol_SliderGrab));
+    }
 
     if (label_size.x > 0.0f)
         RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
@@ -3486,7 +3488,7 @@ bool ImGui::InputScalar(const char* label, ImGuiDataType data_type, void* p_data
     }
     else
     {
-        const float button_size = GetFrameHeight();
+        const float button_size = GetFrameHeight() / 2.f - ImGuiStyleVar_FramePadding / 4.f;
 
         BeginGroup(); // The only purpose of the group here is to allow the caller to query item data e.g. IsItemActive()
         PushID(label);
@@ -3497,22 +3499,27 @@ bool ImGui::InputScalar(const char* label, ImGuiDataType data_type, void* p_data
 
         // Step buttons
         const ImVec2 backup_frame_padding = style.FramePadding;
-        style.FramePadding.x = style.FramePadding.y;
         ImGuiButtonFlags button_flags = ImGuiButtonFlags_Repeat | ImGuiButtonFlags_DontClosePopups;
         if (flags & ImGuiInputTextFlags_ReadOnly)
             BeginDisabled();
         SameLine(0, style.ItemInnerSpacing.x);
-        if (ButtonEx("-", ImVec2(button_size, button_size), button_flags))
-        {
-            DataTypeApplyOp(data_type, '-', p_data, p_data, g.IO.KeyCtrl && p_step_fast ? p_step_fast : p_step);
-            value_changed = true;
-        }
-        SameLine(0, style.ItemInnerSpacing.x);
-        if (ButtonEx("+", ImVec2(button_size, button_size), button_flags))
+        PushStyleVar(ImGuiStyleVar_FrameRounding, ImGuiStyleVar_FrameRounding / 2.f);
+        style.FramePadding.x = 0.f;
+        style.FramePadding.y = - CalcTextSize(ICON_FA_ANGLE_UP).y;
+        if (ButtonEx(ICON_FA_ANGLE_UP, ImVec2(button_size, button_size), button_flags))
         {
             DataTypeApplyOp(data_type, '+', p_data, p_data, g.IO.KeyCtrl && p_step_fast ? p_step_fast : p_step);
             value_changed = true;
         }
+        window->DC.CursorPos.x = window->DC.CursorPosPrevLine.x - button_size;
+        window->DC.CursorPos.y = window->DC.CursorPosPrevLine.y + button_size + ImGuiStyleVar_FramePadding / 2.f;
+        AlignTextToFramePadding();
+        if (ButtonEx(ICON_FA_ANGLE_DOWN, ImVec2(button_size, button_size), button_flags))
+        {
+            DataTypeApplyOp(data_type, '-', p_data, p_data, g.IO.KeyCtrl && p_step_fast ? p_step_fast : p_step);
+            value_changed = true;
+        }
+        PopStyleVar();
         if (flags & ImGuiInputTextFlags_ReadOnly)
             EndDisabled();
 
