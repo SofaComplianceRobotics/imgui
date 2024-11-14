@@ -3188,7 +3188,7 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
     const ImGuiStyle& style = g.Style;
     const ImGuiID id = window->GetID(label);
     const float w = CalcItemWidth();
-    float thickness = style.ScrollbarSize / 4.f;
+    float thickness = style.ScrollbarSize / 5.f;
     float radius = thickness * 2.5f;
 
     const ImVec2 label_size = CalcTextSize(label, NULL, true);
@@ -3236,7 +3236,7 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
 
     // Draw frame
     RenderNavHighlight(frame_bb, id);
-    RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_Button), true, g.Style.FrameRounding);
+    RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_ScrollbarGrab), true, g.Style.FrameRounding);
 
     // Slider behavior
     ImRect grab_bb;
@@ -3689,6 +3689,7 @@ bool ImGui::InputScalar(const char* label, ImGuiDataType data_type, void* p_data
         ImVec2 backup_ButtonTextAlign = style.ButtonTextAlign;
         style.ButtonTextAlign.x = 0.;
         style.ButtonTextAlign.y = 0.;
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0);
         if (ButtonEx("+", ImVec2(button_size, button_size), button_flags))
         {
             DataTypeApplyOp(data_type, '+', p_data, p_data, g.IO.KeyCtrl && p_step_fast ? p_step_fast : p_step);
@@ -3703,6 +3704,7 @@ bool ImGui::InputScalar(const char* label, ImGuiDataType data_type, void* p_data
             DataTypeApplyOp(data_type, '-', p_data, p_data, g.IO.KeyCtrl && p_step_fast ? p_step_fast : p_step);
             value_changed = true;
         }
+        ImGui::PopStyleVar();
         style.ButtonTextAlign = backup_ButtonTextAlign;
         PopStyleVar();
         if (flags & ImGuiInputTextFlags_ReadOnly)
@@ -8571,7 +8573,10 @@ bool ImGui::BeginMenuBar()
     // We don't clip with current window clipping rectangle as it is already set to the area below. However we clip with window full rect.
     // We remove 1 worth of rounding to Max.x to that text in long menus and small windows don't tend to display over the lower-right rounded area, which looks particularly glitchy.
     ImRect bar_rect = window->MenuBarRect();
-    ImRect clip_rect(ImFloor(bar_rect.Min.x + window->WindowBorderSize), ImFloor(bar_rect.Min.y + window->WindowBorderSize), ImFloor(ImMax(bar_rect.Min.x, bar_rect.Max.x - ImMax(window->WindowRounding, window->WindowBorderSize))), ImFloor(bar_rect.Max.y));
+    ImRect clip_rect(ImFloor(bar_rect.Min.x + window->WindowBorderSize),
+                     ImFloor(bar_rect.Min.y + window->WindowBorderSize),
+                     ImFloor(ImMax(bar_rect.Min.x, bar_rect.Max.x - ImMax(window->WindowRounding, window->WindowBorderSize))),
+                     ImFloor(bar_rect.Max.y));
     clip_rect.ClipWith(window->OuterRectClipped);
     PushClipRect(clip_rect.Min, clip_rect.Max, false);
 
