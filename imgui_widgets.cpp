@@ -3703,7 +3703,6 @@ bool ImGui::InputScalar(const char* label, ImGuiDataType data_type, void* p_data
         IMGUI_TEST_ENGINE_ITEM_INFO(g.LastItemData.ID, label, g.LastItemData.StatusFlags | ImGuiItemStatusFlags_Inputable);
 
         // Step buttons
-        style.FramePadding.x = style.FramePadding.y;
         if (flags & ImGuiInputTextFlags_ReadOnly)
             BeginDisabled();
         PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
@@ -3715,7 +3714,7 @@ bool ImGui::InputScalar(const char* label, ImGuiDataType data_type, void* p_data
         ImVec2 backup_ButtonTextAlign = style.ButtonTextAlign;
         style.ButtonTextAlign.x = 0.;
         style.ButtonTextAlign.y = 0.;
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0);
+        PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0);
         if (ButtonEx("+", ImVec2(button_size, button_size)))
         {
             DataTypeApplyOp(data_type, '+', p_data, p_data, g.IO.KeyCtrl && p_step_fast ? p_step_fast : p_step);
@@ -3730,10 +3729,10 @@ bool ImGui::InputScalar(const char* label, ImGuiDataType data_type, void* p_data
             DataTypeApplyOp(data_type, '-', p_data, p_data, g.IO.KeyCtrl && p_step_fast ? p_step_fast : p_step);
             value_changed = true;
         }
-        ImGui::PopStyleVar();
-        style.ButtonTextAlign = backup_ButtonTextAlign;
         PopStyleVar();
         PopItemFlag();
+        style.ButtonTextAlign = backup_ButtonTextAlign;
+        PopStyleVar();
         if (flags & ImGuiInputTextFlags_ReadOnly)
             EndDisabled();
 
