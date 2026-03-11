@@ -1017,20 +1017,23 @@ void ImGui_ImplWGPU_DebugPrintAdapterInfo(const WGPUAdapter& adapter)
     wgpuAdapterInfoFreeMembers(info);
 }
 
-#if defined(IMGUI_IMPL_WEBGPU_BACKEND_WGPU) || defined(IMGUI_IMPL_WEBGPU_BACKEND_DAWN) && !defined(__EMSCRIPTEN__)
+#ifndef __EMSCRIPTEN__
 
 #if defined(__APPLE__)
 // MacOS specific: is necessary to compile with "-x objective-c++" flags
 // (e.g. using cmake: set_source_files_properties(${IMGUI_DIR}/backends/imgui_impl_wgpu.cpp PROPERTIES COMPILE_FLAGS "-x objective-c++") )
+#include <TargetConditionals.h>
+#if TARGET_OS_OSX
 #include <Cocoa/Cocoa.h>
 #include <QuartzCore/CAMetalLayer.h>
+#endif
 #endif
 
 WGPUSurface ImGui_ImplWGPU_CreateWGPUSurfaceHelper(ImGui_ImplWGPU_CreateSurfaceInfo* info)
 {
     WGPUSurfaceDescriptor surface_descriptor = {};
     WGPUSurface surface = {};
-#if defined(__APPLE__)
+#if defined(__APPLE__) && TARGET_OS_OSX
     if (strcmp(info->System, "cocoa") == 0)
     {
         IM_ASSERT(info->RawWindow != nullptr);
@@ -1077,11 +1080,11 @@ WGPUSurface ImGui_ImplWGPU_CreateWGPUSurfaceHelper(ImGui_ImplWGPU_CreateSurfaceI
         surface = wgpuInstanceCreateSurface(info->Instance, &surface_descriptor);
     }
 #else
-#error "Unsupported WebGPU native platform!"
+    IM_ASSERT(0 && "Unsupported WebGPU native platform!");
 #endif
     return surface;
 }
-#endif
+#endif // #ifndef __EMSCRIPTEN__
 
 //-----------------------------------------------------------------------------
 

@@ -40,8 +40,8 @@ static int                      wgpu_surface_width = 1280;
 static int                      wgpu_surface_height = 800;
 
 // Forward declarations
-static bool         InitWGPU(GLFWwindow* window);
-static WGPUSurface  CreateWGPUSurface(const WGPUInstance& instance, GLFWwindow* window);
+static bool InitWGPU(GLFWwindow* window);
+WGPUSurface CreateWGPUSurface(const WGPUInstance& instance, GLFWwindow* window);
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -99,7 +99,7 @@ int main(int, char**)
     // Setup scaling
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-    style.FontScaleDpi = main_scale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
+    style.FontScaleDpi = main_scale;        // Set initial font scale. (in docking branch: using io.ConfigDpiScaleFonts=true automatically overrides this for every window depending on the current monitor)
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOther(window, true);
@@ -114,15 +114,17 @@ int main(int, char**)
     ImGui_ImplWGPU_Init(&init_info);
 
     // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details. If you like the default font but want it to scale better, consider using the 'ProggyVector' from the same author!
+    // - If fonts are not explicitly loaded, Dear ImGui will select an embedded font: either AddFontDefaultVector() or AddFontDefaultBitmap().
+    //   This selection is based on (style.FontSizeBase * style.FontScaleMain * style.FontScaleDpi) reaching a small threshold.
+    // - You can load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
+    // - If a file cannot be loaded, AddFont functions will return a nullptr. Please handle those errors in your code (e.g. use an assertion, display an error and quit).
+    // - Read 'docs/FONTS.md' for more instructions and details.
+    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use FreeType for higher quality font rendering.
     // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
     // - Our Emscripten build process allows embedding fonts to be accessible at runtime from the "fonts/" folder. See Makefile.emscripten for details.
     //style.FontSizeBase = 20.0f;
-    //io.Fonts->AddFontDefault();
+    //io.Fonts->AddFontDefaultVector();
+    //io.Fonts->AddFontDefaultBitmap();
 #ifndef IMGUI_DISABLE_FILE_FUNCTIONS
     //io.Fonts->AddFontFromFileTTF("fonts/segoeui.ttf");
     //io.Fonts->AddFontFromFileTTF("fonts/DroidSans.ttf");
@@ -384,30 +386,36 @@ static WGPUAdapter RequestAdapter(WGPUInstance& instance)
 {
     WGPURequestAdapterOptions adapter_options = {};
 
-    WGPUAdapter local_adapter;
+    WGPUAdapter local_adapter = nullptr;
     WGPURequestAdapterCallbackInfo adapterCallbackInfo = {};
+    adapterCallbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
     adapterCallbackInfo.callback = handle_request_adapter;
     adapterCallbackInfo.userdata1 = &local_adapter;
 
-    wgpuInstanceRequestAdapter(instance, &adapter_options, adapterCallbackInfo);
+    WGPUFuture future = wgpuInstanceRequestAdapter(instance, &adapter_options, adapterCallbackInfo);
+    WGPUFutureWaitInfo waitInfo = { future, false };
+    wgpuInstanceWaitAny(instance, 1, &waitInfo, ~0ull);
     IM_ASSERT(local_adapter && "Error on Adapter request");
     return local_adapter;
 }
 
-static WGPUDevice RequestDevice(WGPUAdapter& adapter)
+static WGPUDevice RequestDevice(WGPUInstance& instance, WGPUAdapter& adapter)
 {
-    WGPUDevice local_device;
+    WGPUDevice local_device = nullptr;
     WGPURequestDeviceCallbackInfo deviceCallbackInfo = {};
+    deviceCallbackInfo.mode = WGPUCallbackMode_WaitAnyOnly;
     deviceCallbackInfo.callback = handle_request_device;
     deviceCallbackInfo.userdata1 = &local_device;
-    wgpuAdapterRequestDevice(adapter, nullptr, deviceCallbackInfo);
+    WGPUFuture future = wgpuAdapterRequestDevice(adapter, nullptr, deviceCallbackInfo);
+    WGPUFutureWaitInfo waitInfo = { future, false };
+    wgpuInstanceWaitAny(instance, 1, &waitInfo, ~0ull);
     IM_ASSERT(local_device && "Error on Device request");
     return local_device;
 }
 #endif // __EMSCRIPTEN__
 #endif // IMGUI_IMPL_WEBGPU_BACKEND_WGPU
 
-static bool InitWGPU(GLFWwindow* window)
+bool InitWGPU(GLFWwindow* window)
 {
     WGPUTextureFormat preferred_fmt = WGPUTextureFormat_Undefined;  // acquired from SurfaceCapabilities
 
@@ -448,7 +456,11 @@ static bool InitWGPU(GLFWwindow* window)
 
     // WGPU backend: Adapter and Device acquisition, Surface creation
 #elif defined(IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
-    wgpu_instance = wgpuCreateInstance(nullptr);
+    WGPUInstanceDescriptor instanceDesc = {};
+    WGPUInstanceFeatureName timedWaitAny = WGPUInstanceFeatureName_TimedWaitAny;
+    instanceDesc.requiredFeatureCount = 1;
+    instanceDesc.requiredFeatures = &timedWaitAny;
+    wgpu_instance = wgpuCreateInstance(&instanceDesc);
 
 #ifdef __EMSCRIPTEN__
     getAdapterAndDeviceViaJS();
@@ -475,7 +487,7 @@ static bool InitWGPU(GLFWwindow* window)
     WGPUAdapter adapter = RequestAdapter(wgpu_instance);
     ImGui_ImplWGPU_DebugPrintAdapterInfo(adapter);
 
-    wgpu_device = RequestDevice(adapter);
+    wgpu_device = RequestDevice(wgpu_instance, adapter);
 
     // Create the surface.
     wgpu_surface = CreateWGPUSurface(wgpu_instance, window);
@@ -507,7 +519,7 @@ static bool InitWGPU(GLFWwindow* window)
 // As of today (2025/10) there is no "official" support in GLFW to create a surface for WebGPU backend
 // This stub uses "low level" GLFW calls to acquire information from a specific Window Manager.
 // Currently supported platforms: Windows / Linux (X11 and Wayland) / MacOS. Not necessary nor available with EMSCRIPTEN.
-#if !defined(__EMSCRIPTEN__) && (defined(IMGUI_IMPL_WEBGPU_BACKEND_WGPU) || defined(IMGUI_IMPL_WEBGPU_BACKEND_DAWN))
+#ifndef __EMSCRIPTEN__
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
 #define GLFW_HAS_X11_OR_WAYLAND     1
@@ -574,4 +586,4 @@ WGPUSurface CreateWGPUSurface(const WGPUInstance& instance, GLFWwindow* window)
 #endif
     return nullptr;
 }
-#endif
+#endif // #ifndef __EMSCRIPTEN__

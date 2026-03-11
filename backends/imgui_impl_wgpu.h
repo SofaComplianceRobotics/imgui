@@ -35,10 +35,19 @@
 // Setup Emscripten default if not specified.
 #if defined(__EMSCRIPTEN__) && !defined(IMGUI_IMPL_WEBGPU_BACKEND_DAWN) && !defined(IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 #include <emscripten/version.h>
+
+#ifdef __EMSCRIPTEN_MAJOR__
+#if (__EMSCRIPTEN_MAJOR__ >= 5) || ((__EMSCRIPTEN_MAJOR__ >= 4) && (__EMSCRIPTEN_MINOR__ >= 0) && (__EMSCRIPTEN_TINY__ >= 10))
+#define IMGUI_IMPL_WEBGPU_BACKEND_DAWN
+#else
+#define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
+#endif
+#else
 #if (__EMSCRIPTEN_major__ >= 4) && (__EMSCRIPTEN_minor__ >= 0) && (__EMSCRIPTEN_tiny__ >= 10)
 #define IMGUI_IMPL_WEBGPU_BACKEND_DAWN
 #else
 #define IMGUI_IMPL_WEBGPU_BACKEND_WGPU
+#endif
 #endif
 #endif
 
@@ -74,7 +83,7 @@ IMGUI_IMPL_API void ImGui_ImplWGPU_RenderDrawData(ImDrawData* draw_data, WGPURen
 IMGUI_IMPL_API bool ImGui_ImplWGPU_CreateDeviceObjects();
 IMGUI_IMPL_API void ImGui_ImplWGPU_InvalidateDeviceObjects();
 
-// (Advanced) Use e.g. if you need to precisely control the timing of texture updates (e.g. for staged rendering), by setting ImDrawData::Textures = NULL to handle this manually.
+// (Advanced) Use e.g. if you need to precisely control the timing of texture updates (e.g. for staged rendering), by setting ImDrawData::Textures = nullptr to handle this manually.
 IMGUI_IMPL_API void ImGui_ImplWGPU_UpdateTexture(ImTextureData* tex);
 
 // [BETA] Selected render state data shared with callbacks.
@@ -107,7 +116,7 @@ const char* ImGui_ImplWGPU_GetLogLevelName(WGPULogLevel level);
 #endif
 
 // (Optional) Helper to create a surface on macOS/Wayland/X11/Window
-#if defined(IMGUI_IMPL_WEBGPU_BACKEND_WGPU) || defined(IMGUI_IMPL_WEBGPU_BACKEND_DAWN) && !defined(__EMSCRIPTEN__)
+#ifndef __EMSCRIPTEN__
 struct ImGui_ImplWGPU_CreateSurfaceInfo
 {
     WGPUInstance    Instance;
@@ -118,6 +127,6 @@ struct ImGui_ImplWGPU_CreateSurfaceInfo
     void*           RawInstance; // 0         | 0           | 0         | HINSTANCE
 };
 WGPUSurface ImGui_ImplWGPU_CreateWGPUSurfaceHelper(ImGui_ImplWGPU_CreateSurfaceInfo* info);
-#endif
+#endif // #ifndef __EMSCRIPTEN__
 
 #endif // #ifndef IMGUI_DISABLE
