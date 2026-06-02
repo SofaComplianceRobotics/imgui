@@ -6166,11 +6166,11 @@ static void ImGui::RenderDimmedBackgrounds()
         // Draw border around Ctrl+Tab target window
         ImGuiWindow* window = g.NavWindowingTargetAnim;
         ImGuiViewport* viewport = window->Viewport;
-        float distance = g.FontSize;
+        // float distance = g.FontSize;
         ImRect bb = window->Rect();
-        bb.Expand(distance);
-        if (bb.GetWidth() >= viewport->Size.x && bb.GetHeight() >= viewport->Size.y)
-            bb.Expand(-distance - 1.0f); // If a window fits the entire viewport, adjust its highlight inward
+        // bb.Expand(distance);
+        // if (bb.GetWidth() >= viewport->Size.x && bb.GetHeight() >= viewport->Size.y)
+            // bb.Expand(-distance - 1.0f); // If a window fits the entire viewport, adjust its highlight inward
         window->DrawList->ChannelsMerge();
         if (window->DrawList->CmdBuffer.Size == 0)
             window->DrawList->AddDrawCmd();
